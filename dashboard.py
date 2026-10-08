@@ -5,8 +5,13 @@ Run:  venv\\Scripts\\streamlit run dashboard.py   (Windows)
 
 Set DASHBOARD_MODE=remote or local to override the automatic detection of
 whether the dashboard runs on the same machine as the bot.
+
+When the bot runs on GitHub Actions, set GITHUB_REPO and GITHUB_TOKEN (see
+github_store.py) and the dashboard reads the schedule, log and settings from GitHub.
 """
 
+import hmac
+import json
 import os
 import subprocess
 import sys
@@ -18,6 +23,7 @@ from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.requests import GetOrdersRequest
 
 import config
+from github_store import WORKFLOW, GitHubStore, next_scheduled_run
 from trading_bot import BASE_DIR, ET, LOG_FILE, detect_crossover, fetch_prices, make_client, stop_price_for
 
 WINDOWS_TASK = "Alpaca MA Crossover Bot"  # created by setup_schedule.ps1
@@ -29,7 +35,10 @@ CRON_TAG = "# alpaca-ma-crossover-bot"    # created by setup_schedule.sh (no-sys
 # those aren't reachable.
 _mode = os.getenv("DASHBOARD_MODE", "").lower()
 ON_BOT_PC = _mode == "local" or (_mode != "remote" and (BASE_DIR / ".env").exists())
-REMOTE_NOTE = "Only available when the dashboard runs on the machine that runs the bot."
+GH = GitHubStore.from_env()  # set when the bot runs on GitHub Actions
+CAN_EDIT_SETTINGS = GH is not None or ON_BOT_PC
+REMOTE_NOTE = ("Only available when the dashboard runs on the machine that runs the bot, "
+               "or when GITHUB_REPO and GITHUB_TOKEN are configured.")
 
 st.set_page_config(page_title="Alpaca Bot Dashboard", layout="wide")
 
@@ -104,6 +113,28 @@ def linux_schedule() -> dict[str, str] | None:
 @st.cache_data(ttl=60)
 def scheduled_task_info() -> dict[str, str] | None:
     return windows_schedule() if sys.platform == "win32" else linux_schedule()
+
+
+@st.cache_data(ttl=30)
+def gh_runs() -> list[dict]:
+    return GH.workflow_runs(10)
+
+
+@st.cache_data(ttl=60)
+def gh_log() -> str | None:
+    return GH.read_text("trading_bot.log")
+
+
+@st.cache_data(ttl=30)
+def gh_settings() -> dict | None:
+    text = GH.read_text("settings.json")
+    return json.loads(text) if text else None
+
+
+def run_result(run: dict) -> str:
+    if run["status"] != "completed":
+        return run["status"].replace("_", " ").title()
+    return "OK" if run["conclusion"] == "success" else (run["conclusion"] or "unknown").replace("_", " ").title()
 
 
 def money(value) -> str:
@@ -209,7 +240,40 @@ def section_strategy() -> None:
     st.line_chart(chart, height=350)
 
 
+def section_schedule_github() -> None:
+    st.subheader("Scheduled runs (GitHub Actions)")
+    runs = gh_runs()
+    last = runs[0] if runs else None
+    cols = st.columns(3)
+    cols[0].metric("Next scheduled run", f"{next_scheduled_run().astimezone(ET):%a %b %d %H:%M} ET",
+                   "then waits for the 9:30 open", delta_color="off")
+    cols[1].metric("Last run", datetime.fromisoformat(last["run_started_at"]).astimezone(ET).strftime("%a %b %d %H:%M ET") if last else "never")
+    cols[2].metric("Last result", run_result(last) if last else "Not run yet")
+
+    dry, live = st.columns(2)
+    if dry.button("Dry run now", width="stretch", help="Checks signals and logs what it would do, without placing orders"):
+        GH.dispatch(dry_run=True)
+        st.success("Dry run started. Refresh in a minute to see it.")
+    if live.button("Run now (places orders)", width="stretch", help="Same as the scheduled run, but starts immediately"):
+        GH.dispatch(dry_run=False)
+        st.success("Run started. Refresh in a minute to see it.")
+
+    if runs:
+        st.dataframe(pd.DataFrame([{
+            "Started (ET)": datetime.fromisoformat(r["run_started_at"]).astimezone(ET).strftime("%Y-%m-%d %H:%M"),
+            "Trigger": {"schedule": "scheduled", "workflow_dispatch": "manual"}.get(r["event"], r["event"]),
+            "Result": run_result(r),
+            "Details": r["html_url"],
+        } for r in runs]), hide_index=True, width="stretch",
+            column_config={"Details": st.column_config.LinkColumn(display_text="open")})
+    else:
+        st.info(f"No runs yet. Make sure .github/workflows/{WORKFLOW} is pushed and the Alpaca secrets are set on GitHub.")
+
+
 def section_schedule() -> None:
+    if GH:
+        section_schedule_github()
+        return
     st.subheader("Scheduled task")
     if not ON_BOT_PC:
         st.info(REMOTE_NOTE)
@@ -249,10 +313,16 @@ def section_orders(tc) -> None:
 
 def section_log() -> None:
     st.subheader("Bot log")
-    if not LOG_FILE.exists():
-        st.info("No log yet. It is created on the first bot run." if ON_BOT_PC else REMOTE_NOTE)
+    if GH:
+        text = gh_log()
+    elif LOG_FILE.exists():
+        text = LOG_FILE.read_text(encoding="utf-8")
+    else:
+        text = None
+    if text is None:
+        st.info("No log yet. It is created on the first bot run." if GH or ON_BOT_PC else REMOTE_NOTE)
         return
-    lines = LOG_FILE.read_text(encoding="utf-8").splitlines()
+    lines = text.splitlines()
     n = st.slider("Lines to show", 20, 500, 100, step=20)
     st.code("\n".join(reversed(lines[-n:])) or "(empty)", language=None)
 
@@ -268,12 +338,19 @@ def section_settings(tc) -> None:
         stop = st.number_input("Stop-loss (% below entry)", min_value=0.1, max_value=50.0,
                                value=float(config.STOP_LOSS_PCT), step=0.5,
                                help="Sell a position if it falls this % below the average entry price")
-        saved = st.form_submit_button("Save", type="primary", width="stretch", disabled=not ON_BOT_PC)
-    if not ON_BOT_PC:
+        saved = st.form_submit_button("Save", type="primary", width="stretch", disabled=not CAN_EDIT_SETTINGS)
+    if not CAN_EDIT_SETTINGS:
         st.warning("Read-only here: the bot reads settings.json on the machine it runs on, so changes saved on "
-                   "this server would not reach it. Open the dashboard on the bot's machine to change settings.")
+                   "this server would not reach it. Configure GITHUB_REPO and GITHUB_TOKEN, or open the "
+                   "dashboard on the bot's machine, to change settings.")
     if saved:
-        config.save_settings({"POSITION_SIZE_PCT": size, "MIN_ORDER_USD": min_order, "STOP_LOSS_PCT": stop})
+        values = {"POSITION_SIZE_PCT": size, "MIN_ORDER_USD": min_order, "STOP_LOSS_PCT": stop}
+        if GH:
+            GH.write_text("settings.json", config.settings_json(values), "Update bot settings from dashboard")
+            gh_settings.clear()
+            config.apply_settings(values)
+        else:
+            config.save_settings(values)
         st.success("Saved. The bot uses these from its next run.")
 
     acct = tc.get_account()
@@ -282,14 +359,6 @@ def section_settings(tc) -> None:
     st.caption("Stop-loss changes apply to open positions from the next run, when their stop orders are renewed.")
 
 
-config.load_settings()
-st.title("Alpaca Trading Bot Dashboard")
-top = st.columns([6, 1])
-top[0].caption(f"Updated {datetime.now(ET):%Y-%m-%d %H:%M:%S} ET")
-if top[1].button("Refresh", width="stretch"):
-    st.cache_data.clear()
-    st.rerun()
-
 def show(section, *args) -> None:
     try:
         section(*args)
@@ -297,6 +366,31 @@ def show(section, *args) -> None:
         st.error(f"{section.__name__.removeprefix('section_').title()} error: {exc}")
         st.exception(exc)
 
+
+st.title("Alpaca Trading Bot Dashboard")
+
+if password := os.getenv("DASHBOARD_PASSWORD"):
+    if not st.session_state.get("authenticated"):
+        entered = st.text_input("Password", type="password")
+        if entered and hmac.compare_digest(entered, password):
+            st.session_state.authenticated = True
+            st.rerun()
+        if entered:
+            st.error("Wrong password.")
+        st.stop()
+
+top = st.columns([6, 1])
+top[0].caption(f"Updated {datetime.now(ET):%Y-%m-%d %H:%M:%S} ET")
+if top[1].button("Refresh", width="stretch"):
+    st.cache_data.clear()
+    st.rerun()
+
+config.load_settings()
+if GH:
+    try:
+        config.apply_settings(gh_settings() or {})
+    except Exception as exc:
+        st.warning(f"Could not load settings from GitHub, showing defaults: {exc}")
 
 try:
     tc = client()

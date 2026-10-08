@@ -1,0 +1,76 @@
+name: Trading bot
+
+on:
+  schedule:
+    # 13:15 UTC = 9:15 AM EDT / 8:15 AM EST. The bot skips market holidays and waits
+    # for the 9:30 AM ET open, so this one time works all year. Keep in sync with
+    # SCHEDULE_UTC in github_store.py.
+    - cron: "15 13 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (report signals without placing orders)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: trading-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Load settings and log from the bot-data branch
+        run: |
+          mkdir -p logs
+          if git fetch --depth=1 origin bot-data; then
+            git show FETCH_HEAD:settings.json > settings.json 2>/dev/null || git checkout -- settings.json 2>/dev/null || true
+            git show FETCH_HEAD:trading_bot.log > logs/trading_bot.log 2>/dev/null || true
+          fi
+          echo "Settings in use:"; cat settings.json 2>/dev/null || echo "(config.py defaults)"
+
+      - name: Run bot
+        env:
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        run: |
+          args=()
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then args+=(--wait-for-open); fi
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then args+=(--dry-run); fi
+          python trading_bot.py "${args[@]}"
+
+      - name: Save log to the bot-data branch
+        if: always()
+        run: |
+          [[ -f logs/trading_bot.log ]] || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin bot-data; then
+            git worktree add -B bot-data data FETCH_HEAD
+          else
+            git worktree add --orphan -b bot-data data
+          fi
+          tail -n 5000 logs/trading_bot.log > data/trading_bot.log
+          cd data
+          git add trading_bot.log
+          git commit -m "Bot log $(date -u +'%Y-%m-%d %H:%M UTC')" || exit 0
+          for attempt in 1 2 3; do
+            git push origin HEAD:bot-data && exit 0
+            git pull --rebase origin bot-data
+          done
+          exit 1

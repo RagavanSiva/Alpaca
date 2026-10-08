@@ -22,16 +22,22 @@ SETTINGS_FILE = Path(__file__).with_name("settings.json")
 EDITABLE_SETTINGS = ("POSITION_SIZE_PCT", "MIN_ORDER_USD", "STOP_LOSS_PCT")
 
 
+def apply_settings(values: dict) -> None:
+    globals().update({k: float(v) for k, v in values.items() if k in EDITABLE_SETTINGS})
+
+
+def settings_json(values: dict) -> str:
+    return json.dumps({k: float(values[k]) for k in EDITABLE_SETTINGS}, indent=2)
+
+
 def load_settings() -> None:
     if SETTINGS_FILE.exists():
-        saved = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-        globals().update({k: float(v) for k, v in saved.items() if k in EDITABLE_SETTINGS})
+        apply_settings(json.loads(SETTINGS_FILE.read_text(encoding="utf-8")))
 
 
 def save_settings(values: dict[str, float]) -> None:
-    values = {k: float(values[k]) for k in EDITABLE_SETTINGS}
-    SETTINGS_FILE.write_text(json.dumps(values, indent=2), encoding="utf-8")
-    globals().update(values)
+    SETTINGS_FILE.write_text(settings_json(values), encoding="utf-8")
+    apply_settings(values)
 
 
 load_settings()
