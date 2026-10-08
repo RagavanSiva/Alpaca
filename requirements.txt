@@ -1,0 +1,5 @@
+alpaca-py==0.44.0
+yfinance==1.7.0
+pandas==3.0.6
+python-dotenv==1.2.4
+streamlit==1.64.0
