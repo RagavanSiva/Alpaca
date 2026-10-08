@@ -9,6 +9,7 @@ Scheduling: setup_schedule.ps1 (Windows Task Scheduler) or setup_schedule.sh (Li
 """
 
 import argparse
+import io
 import logging
 import os
 import sys
@@ -27,19 +28,23 @@ from alpaca.trading.requests import GetCalendarRequest, GetOrdersRequest, Market
 from dotenv import load_dotenv
 
 import config
+from notifier import email_configured, send_email
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "logs" / "trading_bot.log"
 ET = ZoneInfo("America/New_York")
 
 log = logging.getLogger("trading_bot")
+RUN_LOG = io.StringIO()     # this run's log lines, included in the notification email
+ALERTS: list[str] = []      # signals and stop-loss hits found during this run
 
 
 def setup_logging() -> None:
     LOG_FILE.parent.mkdir(exist_ok=True)
     fmt = logging.Formatter("%(asctime)s ET [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
     fmt.converter = lambda *args: datetime.now(ET).timetuple()
-    for handler in (logging.FileHandler(LOG_FILE, encoding="utf-8"), logging.StreamHandler(sys.stdout)):
+    for handler in (logging.FileHandler(LOG_FILE, encoding="utf-8"), logging.StreamHandler(sys.stdout),
+                    logging.StreamHandler(RUN_LOG)):
         handler.setFormatter(fmt)
         log.addHandler(handler)
     log.setLevel(logging.INFO)
@@ -186,6 +191,10 @@ def trade_symbol(client: TradingClient, symbol: str, dry_run: bool) -> None:
     log.info("[%s] Latest day   (%s): close %.2f, %d-day MA %.2f, %d-day MA %.2f", symbol, df.index[-1].date(),
              last.close, config.SHORT_WINDOW, last.short_ma, config.LONG_WINDOW, last.long_ma)
     log.info("[%s] Signal: %s", symbol, signal or "none")
+    if signal:
+        ALERTS.append(f"{symbol}: {signal.upper()} signal - {config.SHORT_WINDOW}-day MA crossed "
+                      f"{'above' if signal == 'buy' else 'below'} {config.LONG_WINDOW}-day MA "
+                      f"({last.short_ma:.2f} vs {last.long_ma:.2f}), close ${last.close:.2f}")
 
     position = get_position(client, symbol)
     if position is None:
@@ -205,6 +214,7 @@ def trade_symbol(client: TradingClient, symbol: str, dry_run: bool) -> None:
         cancel_stop_orders(client, symbol)
 
     if price <= stop:
+        ALERTS.append(f"{symbol}: STOP-LOSS hit - price ${price:.2f} <= stop ${stop:.2f} (entry ${entry:.2f})")
         sell_all(client, symbol, f"stop-loss: ${price:.2f} <= ${stop:.2f}", dry_run)
     elif signal == "sell":
         sell_all(client, symbol, "death cross", dry_run)
@@ -236,6 +246,24 @@ def run(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+def notify(dry_run: bool) -> None:
+    """Email a summary if this run found any signal or stop-loss hit."""
+    if not ALERTS:
+        return
+    if not email_configured():
+        log.warning("Signal found, but email is not configured (NOTIFY_EMAIL, SMTP_USER, SMTP_PASSWORD). No email sent.")
+        return
+    tags = ", ".join(a.split(" - ")[0].replace(":", "") for a in ALERTS)
+    subject = f"Alpaca bot{' [DRY RUN]' if dry_run else ''}{' [PAPER]' if config.PAPER else ''}: {tags}"
+    body = ("\n".join(ALERTS)
+            + ("\n\nDry run: no orders were placed." if dry_run else "")
+            + "\n\nFull log of this run:\n\n" + RUN_LOG.getvalue())
+    try:
+        log.info("Notification email sent to %s", send_email(subject, body))
+    except Exception:
+        log.exception("Failed to send notification email")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Moving average crossover trading bot")
     parser.add_argument("--dry-run", action="store_true", help="Report the signal without placing orders")
@@ -243,6 +271,7 @@ def main() -> int:
                         help="Skip non-trading days and wait until the market opens before trading")
     args = parser.parse_args()
 
+    load_dotenv(BASE_DIR / ".env")
     setup_logging()
     try:
         return run(args)
@@ -250,6 +279,7 @@ def main() -> int:
         log.exception("Bot run failed")
         return 1
     finally:
+        notify(args.dry_run)
         log.info("-" * 60)
 
 
