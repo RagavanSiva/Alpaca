@@ -1,9 +1,11 @@
 """Moving average crossover bot for Alpaca paper trading.
 
-Usage:
-    venv\\Scripts\\python trading_bot.py                    # check now, trade on crossover / stop-loss
-    venv\\Scripts\\python trading_bot.py --dry-run          # only report the signal
-    venv\\Scripts\\python trading_bot.py --wait-for-open    # scheduled mode: skip holidays, wait for 9:30 ET
+Usage (Windows: venv\\Scripts\\python, Linux: venv/bin/python):
+    python trading_bot.py                    # check now, trade on crossover / stop-loss
+    python trading_bot.py --dry-run          # only report the signal
+    python trading_bot.py --wait-for-open    # scheduled mode: skip holidays, wait for 9:30 ET
+
+Scheduling: setup_schedule.ps1 (Windows Task Scheduler) or setup_schedule.sh (Linux systemd/cron).
 """
 
 import argparse

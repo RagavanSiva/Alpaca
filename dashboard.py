@@ -1,8 +1,13 @@
 """Streamlit dashboard for the Alpaca moving average crossover bot.
 
-Run:  venv\\Scripts\\streamlit run dashboard.py
+Run:  venv\\Scripts\\streamlit run dashboard.py   (Windows)
+      venv/bin/streamlit run dashboard.py       (Linux)
+
+Set DASHBOARD_MODE=remote or local to override the automatic detection of
+whether the dashboard runs on the same machine as the bot.
 """
 
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -13,13 +18,18 @@ from alpaca.trading.enums import QueryOrderStatus
 from alpaca.trading.requests import GetOrdersRequest
 
 import config
-from trading_bot import ET, LOG_FILE, detect_crossover, fetch_prices, make_client, stop_price_for
+from trading_bot import BASE_DIR, ET, LOG_FILE, detect_crossover, fetch_prices, make_client, stop_price_for
 
-TASK_NAME = "Alpaca MA Crossover Bot"
-# The bot, its scheduled task, log and settings.json live on the Windows PC.
-# When the dashboard is hosted elsewhere (e.g. Streamlit Cloud) those aren't reachable.
-ON_BOT_PC = sys.platform == "win32"
-REMOTE_NOTE = "Only available when the dashboard runs on the PC that runs the bot."
+WINDOWS_TASK = "Alpaca MA Crossover Bot"  # created by setup_schedule.ps1
+SYSTEMD_UNIT = "alpaca-bot"               # created by setup_schedule.sh
+CRON_TAG = "# alpaca-ma-crossover-bot"    # created by setup_schedule.sh (no-systemd fallback)
+
+# The bot, its schedule, log and settings.json live on the machine that runs the bot.
+# When the dashboard is hosted elsewhere (e.g. Streamlit Cloud, which has no .env file)
+# those aren't reachable.
+_mode = os.getenv("DASHBOARD_MODE", "").lower()
+ON_BOT_PC = _mode == "local" or (_mode != "remote" and (BASE_DIR / ".env").exists())
+REMOTE_NOTE = "Only available when the dashboard runs on the machine that runs the bot."
 
 st.set_page_config(page_title="Alpaca Bot Dashboard", layout="wide")
 
@@ -34,19 +44,66 @@ def strategy_data(symbol: str) -> tuple[str | None, pd.DataFrame]:
     return detect_crossover(fetch_prices(symbol, config.LOOKBACK_DAYS), config.SHORT_WINDOW, config.LONG_WINDOW)
 
 
-@st.cache_data(ttl=60)
-def scheduled_task_info() -> dict[str, str] | None:
-    cmd = (f"$i = Get-ScheduledTaskInfo -TaskName '{TASK_NAME}' -ErrorAction Stop; "
-           f"$t = Get-ScheduledTask -TaskName '{TASK_NAME}'; "
-           "\"$($t.State)|$($i.NextRunTime)|$($i.LastRunTime)|$($i.LastTaskResult)\"")
+def run_cmd(args: list[str]) -> str | None:
     try:
-        result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, timeout=20)
+        result = subprocess.run(args, capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if result.returncode != 0 or "|" not in result.stdout:
+    return result.stdout if result.returncode == 0 else None
+
+
+def windows_schedule() -> dict[str, str] | None:
+    out = run_cmd(["powershell", "-NoProfile", "-Command",
+                   f"$i = Get-ScheduledTaskInfo -TaskName '{WINDOWS_TASK}' -ErrorAction Stop; "
+                   f"$t = Get-ScheduledTask -TaskName '{WINDOWS_TASK}'; "
+                   "\"$($t.State)|$($i.NextRunTime)|$($i.LastRunTime)|$($i.LastTaskResult)\""])
+    if not out or "|" not in out:
         return None
-    state, next_run, last_run, last_result = result.stdout.strip().split("|")
-    return {"state": state, "next_run": next_run, "last_run": last_run, "last_result": last_result}
+    state, next_run, last_run, code = out.strip().split("|")
+    results = {"0": "OK", "267011": "Not run yet", "267009": "Running"}
+    return {
+        "type": f"Windows Task Scheduler: {WINDOWS_TASK}",
+        "state": state,
+        "next_run": next_run or "-",
+        "last_run": "never" if last_run.startswith("11/30/1999") else last_run,
+        "last_result": results.get(code, f"Error {code}"),
+    }
+
+
+def systemd_props(unit: str, *props: str) -> dict[str, str]:
+    out = run_cmd(["systemctl", "--user", "show", unit, *(f"--property={p}" for p in props)])
+    return dict(line.split("=", 1) for line in (out or "").splitlines() if "=" in line)
+
+
+def linux_schedule() -> dict[str, str] | None:
+    timer = systemd_props(f"{SYSTEMD_UNIT}.timer", "LoadState", "ActiveState", "NextElapseUSecRealtime", "LastTriggerUSec")
+    if timer.get("LoadState") == "loaded":
+        svc = systemd_props(f"{SYSTEMD_UNIT}.service", "ActiveState", "Result", "ExecMainStatus")
+        last_run = timer.get("LastTriggerUSec", "")
+        if last_run in ("", "n/a", "0"):
+            last_run, last_result = "never", "Not run yet"
+        elif svc.get("ActiveState") == "activating":
+            last_result = "Running"
+        elif svc.get("Result") == "success":
+            last_result = "OK"
+        else:
+            last_result = f"Error ({svc.get('Result')}, exit {svc.get('ExecMainStatus')})"
+        return {
+            "type": f"systemd timer: {SYSTEMD_UNIT}.timer",
+            "state": timer.get("ActiveState", "-"),
+            "next_run": timer.get("NextElapseUSecRealtime") or "-",
+            "last_run": last_run,
+            "last_result": last_result,
+        }
+    if CRON_TAG in (run_cmd(["crontab", "-l"]) or ""):
+        return {"type": "cron", "state": "Scheduled", "next_run": "Mon-Fri 09:25 ET",
+                "last_run": "see bot log", "last_result": "see bot log"}
+    return None
+
+
+@st.cache_data(ttl=60)
+def scheduled_task_info() -> dict[str, str] | None:
+    return windows_schedule() if sys.platform == "win32" else linux_schedule()
 
 
 def money(value) -> str:
@@ -159,14 +216,15 @@ def section_schedule() -> None:
         return
     info = scheduled_task_info()
     if info is None:
-        st.warning(f"Scheduled task '{TASK_NAME}' not found. Run setup_schedule.ps1 to create it.")
+        script = "setup_schedule.ps1" if sys.platform == "win32" else "./setup_schedule.sh"
+        st.warning(f"No bot schedule found. Run {script} to create it.")
         return
+    st.caption(info["type"])
     cols = st.columns(4)
     cols[0].metric("State", info["state"])
-    cols[1].metric("Next run (local)", info["next_run"] or "-")
-    cols[2].metric("Last run (local)", info["last_run"] if not info["last_run"].startswith("11/30/1999") else "never")
-    results = {"0": "OK", "267011": "Not run yet", "267009": "Running"}
-    cols[3].metric("Last result", results.get(info["last_result"], f"Error {info['last_result']}"))
+    cols[1].metric("Next run", info["next_run"])
+    cols[2].metric("Last run", info["last_run"])
+    cols[3].metric("Last result", info["last_result"])
 
 
 def section_orders(tc) -> None:
@@ -212,8 +270,8 @@ def section_settings(tc) -> None:
                                help="Sell a position if it falls this % below the average entry price")
         saved = st.form_submit_button("Save", type="primary", width="stretch", disabled=not ON_BOT_PC)
     if not ON_BOT_PC:
-        st.warning("Read-only here: the bot reads settings.json on your PC, so changes saved on this "
-                   "server would not reach it. Open the dashboard on your PC to change settings.")
+        st.warning("Read-only here: the bot reads settings.json on the machine it runs on, so changes saved on "
+                   "this server would not reach it. Open the dashboard on the bot's machine to change settings.")
     if saved:
         config.save_settings({"POSITION_SIZE_PCT": size, "MIN_ORDER_USD": min_order, "STOP_LOSS_PCT": stop})
         st.success("Saved. The bot uses these from its next run.")
