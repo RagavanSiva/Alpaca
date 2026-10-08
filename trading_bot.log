@@ -54,3 +54,31 @@
 2026-10-08 12:27:06 ET [INFO] [JPM] No crossover and no position. Nothing to do.
 2026-10-08 12:27:06 ET [INFO] Done: 5 symbol(s) checked, 0 failed
 2026-10-08 12:27:06 ET [INFO] ------------------------------------------------------------
+2026-10-08 12:43:08 ET [INFO] Running crossover bot for AAPL, MSFT, NVDA, SPY, JPM (short=20, long=50, size=20% of equity, stop-loss=5%, paper=True, dry_run=True)
+2026-10-08 12:43:09 ET [INFO] [AAPL] Data: 100 completed trading days ending 2026-10-07
+2026-10-08 12:43:09 ET [INFO] [AAPL] Previous day (2026-10-06): 20-day MA 333.41, 50-day MA 322.30
+2026-10-08 12:43:09 ET [INFO] [AAPL] Latest day   (2026-10-07): close 336.67, 20-day MA 334.48, 50-day MA 322.24
+2026-10-08 12:43:09 ET [INFO] [AAPL] Signal: none
+2026-10-08 12:43:09 ET [INFO] [AAPL] No crossover and no position. Nothing to do.
+2026-10-08 12:43:09 ET [INFO] [MSFT] Data: 100 completed trading days ending 2026-10-07
+2026-10-08 12:43:09 ET [INFO] [MSFT] Previous day (2026-10-06): 20-day MA 504.71, 50-day MA 493.09
+2026-10-08 12:43:09 ET [INFO] [MSFT] Latest day   (2026-10-07): close 529.76, 20-day MA 506.62, 50-day MA 495.84
+2026-10-08 12:43:09 ET [INFO] [MSFT] Signal: none
+2026-10-08 12:43:09 ET [INFO] [MSFT] No crossover and no position. Nothing to do.
+2026-10-08 12:43:09 ET [INFO] [NVDA] Data: 100 completed trading days ending 2026-10-07
+2026-10-08 12:43:09 ET [INFO] [NVDA] Previous day (2026-10-06): 20-day MA 224.88, 50-day MA 219.62
+2026-10-08 12:43:09 ET [INFO] [NVDA] Latest day   (2026-10-07): close 237.47, 20-day MA 225.58, 50-day MA 220.44
+2026-10-08 12:43:09 ET [INFO] [NVDA] Signal: none
+2026-10-08 12:43:09 ET [INFO] [NVDA] No crossover and no position. Nothing to do.
+2026-10-08 12:43:09 ET [INFO] [SPY] Data: 100 completed trading days ending 2026-10-07
+2026-10-08 12:43:09 ET [INFO] [SPY] Previous day (2026-10-06): 20-day MA 765.06, 50-day MA 763.82
+2026-10-08 12:43:09 ET [INFO] [SPY] Latest day   (2026-10-07): close 777.22, 20-day MA 765.89, 50-day MA 764.58
+2026-10-08 12:43:09 ET [INFO] [SPY] Signal: none
+2026-10-08 12:43:09 ET [INFO] [SPY] No crossover and no position. Nothing to do.
+2026-10-08 12:43:10 ET [INFO] [JPM] Data: 100 completed trading days ending 2026-10-07
+2026-10-08 12:43:10 ET [INFO] [JPM] Previous day (2026-10-06): 20-day MA 341.27, 50-day MA 349.61
+2026-10-08 12:43:10 ET [INFO] [JPM] Latest day   (2026-10-07): close 329.58, 20-day MA 340.10, 50-day MA 349.09
+2026-10-08 12:43:10 ET [INFO] [JPM] Signal: none
+2026-10-08 12:43:10 ET [INFO] [JPM] No crossover and no position. Nothing to do.
+2026-10-08 12:43:10 ET [INFO] Done: 5 symbol(s) checked, 0 failed
+2026-10-08 12:43:10 ET [INFO] ------------------------------------------------------------
