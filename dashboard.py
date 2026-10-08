@@ -4,6 +4,7 @@ Run:  venv\\Scripts\\streamlit run dashboard.py
 """
 
 import subprocess
+import sys
 from datetime import datetime
 
 import pandas as pd
@@ -15,6 +16,10 @@ import config
 from trading_bot import ET, LOG_FILE, detect_crossover, fetch_prices, make_client, stop_price_for
 
 TASK_NAME = "Alpaca MA Crossover Bot"
+# The bot, its scheduled task, log and settings.json live on the Windows PC.
+# When the dashboard is hosted elsewhere (e.g. Streamlit Cloud) those aren't reachable.
+ON_BOT_PC = sys.platform == "win32"
+REMOTE_NOTE = "Only available when the dashboard runs on the PC that runs the bot."
 
 st.set_page_config(page_title="Alpaca Bot Dashboard", layout="wide")
 
@@ -34,7 +39,10 @@ def scheduled_task_info() -> dict[str, str] | None:
     cmd = (f"$i = Get-ScheduledTaskInfo -TaskName '{TASK_NAME}' -ErrorAction Stop; "
            f"$t = Get-ScheduledTask -TaskName '{TASK_NAME}'; "
            "\"$($t.State)|$($i.NextRunTime)|$($i.LastRunTime)|$($i.LastTaskResult)\"")
-    result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True)
+    try:
+        result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     if result.returncode != 0 or "|" not in result.stdout:
         return None
     state, next_run, last_run, last_result = result.stdout.strip().split("|")
@@ -146,6 +154,9 @@ def section_strategy() -> None:
 
 def section_schedule() -> None:
     st.subheader("Scheduled task")
+    if not ON_BOT_PC:
+        st.info(REMOTE_NOTE)
+        return
     info = scheduled_task_info()
     if info is None:
         st.warning(f"Scheduled task '{TASK_NAME}' not found. Run setup_schedule.ps1 to create it.")
@@ -181,7 +192,7 @@ def section_orders(tc) -> None:
 def section_log() -> None:
     st.subheader("Bot log")
     if not LOG_FILE.exists():
-        st.info("No log yet. It is created on the first bot run.")
+        st.info("No log yet. It is created on the first bot run." if ON_BOT_PC else REMOTE_NOTE)
         return
     lines = LOG_FILE.read_text(encoding="utf-8").splitlines()
     n = st.slider("Lines to show", 20, 500, 100, step=20)
@@ -199,7 +210,10 @@ def section_settings(tc) -> None:
         stop = st.number_input("Stop-loss (% below entry)", min_value=0.1, max_value=50.0,
                                value=float(config.STOP_LOSS_PCT), step=0.5,
                                help="Sell a position if it falls this % below the average entry price")
-        saved = st.form_submit_button("Save", type="primary", width="stretch")
+        saved = st.form_submit_button("Save", type="primary", width="stretch", disabled=not ON_BOT_PC)
+    if not ON_BOT_PC:
+        st.warning("Read-only here: the bot reads settings.json on your PC, so changes saved on this "
+                   "server would not reach it. Open the dashboard on your PC to change settings.")
     if saved:
         config.save_settings({"POSITION_SIZE_PCT": size, "MIN_ORDER_USD": min_order, "STOP_LOSS_PCT": stop})
         st.success("Saved. The bot uses these from its next run.")
@@ -218,21 +232,30 @@ if top[1].button("Refresh", width="stretch"):
     st.cache_data.clear()
     st.rerun()
 
+def show(section, *args) -> None:
+    try:
+        section(*args)
+    except Exception as exc:
+        st.error(f"{section.__name__.removeprefix('section_').title()} error: {exc}")
+        st.exception(exc)
+
+
 try:
     tc = client()
-    with st.sidebar:
-        section_settings(tc)
-    section_account(tc)
-    section_positions(tc)
-    st.divider()
-    section_strategy()
-    st.divider()
-    left, right = st.columns(2)
-    with left:
-        section_schedule()
-        section_orders(tc)
-    with right:
-        section_log()
 except Exception as exc:
-    st.error(f"Dashboard error: {exc}")
-    st.exception(exc)
+    st.error(f"Could not connect to Alpaca: {exc}")
+    st.stop()
+
+with st.sidebar:
+    show(section_settings, tc)
+show(section_account, tc)
+show(section_positions, tc)
+st.divider()
+show(section_strategy)
+st.divider()
+left, right = st.columns(2)
+with left:
+    show(section_schedule)
+    show(section_orders, tc)
+with right:
+    show(section_log)
