@@ -24,7 +24,8 @@ from alpaca.trading.requests import GetOrdersRequest
 
 import config
 from github_store import WORKFLOW, GitHubStore, next_scheduled_run
-from trading_bot import BASE_DIR, ET, LOG_FILE, detect_crossover, fetch_prices, make_client, stop_price_for
+from trading_bot import (BASE_DIR, ET, LOG_FILE, detect_crossover, fetch_prices, is_crypto, make_client,
+                         position_symbol, stop_price_for)
 
 WINDOWS_TASK = "Alpaca MA Crossover Bot"  # created by setup_schedule.ps1
 SYSTEMD_UNIT = "alpaca-bot"               # created by setup_schedule.sh
@@ -105,7 +106,7 @@ def linux_schedule() -> dict[str, str] | None:
             "last_result": last_result,
         }
     if CRON_TAG in (run_cmd(["crontab", "-l"]) or ""):
-        return {"type": "cron", "state": "Scheduled", "next_run": "Mon-Fri 09:25 ET",
+        return {"type": "cron", "state": "Scheduled", "next_run": "Daily 09:25 ET",
                 "last_run": "see bot log", "last_result": "see bot log"}
     return None
 
@@ -141,6 +142,15 @@ def money(value) -> str:
     return f"${float(value):,.2f}"
 
 
+def price_text(value) -> str:
+    """Like money(), but keeps enough digits for sub-dollar coins such as DOGE."""
+    return money(value) if abs(float(value)) >= 1 else f"${float(value):.6g}"
+
+
+# Significant-digit format so $337.32 and $0.183421 both display properly.
+PRICE_COLUMN = st.column_config.NumberColumn(format="$%.6g")
+
+
 def section_account(tc) -> None:
     acct = tc.get_account()
     clock = tc.get_clock()
@@ -164,6 +174,7 @@ def section_positions(tc) -> None:
     if not positions:
         st.info("No open positions.")
         return
+    managed = {position_symbol(s): is_crypto(s) for s in config.SYMBOLS}  # Alpaca reports BTC/USD as BTCUSD
     df = pd.DataFrame([{
         "Symbol": p.symbol,
         "Qty": float(p.qty),
@@ -172,16 +183,16 @@ def section_positions(tc) -> None:
         "Market value": float(p.market_value),
         "Unrealized P/L": float(p.unrealized_pl),
         "P/L %": float(p.unrealized_plpc) * 100,
-        "Stop-loss": stop_price_for(float(p.avg_entry_price)) if p.symbol in config.SYMBOLS else None,
+        "Stop-loss": stop_price_for(float(p.avg_entry_price), managed[p.symbol]) if p.symbol in managed else None,
     } for p in positions])
     st.dataframe(df, hide_index=True, width="stretch", column_config={
         "Qty": st.column_config.NumberColumn(format="%.6g"),
-        "Avg entry": st.column_config.NumberColumn(format="$%.2f"),
-        "Current": st.column_config.NumberColumn(format="$%.2f"),
+        "Avg entry": PRICE_COLUMN,
+        "Current": PRICE_COLUMN,
         "Market value": st.column_config.NumberColumn(format="$%.2f"),
         "Unrealized P/L": st.column_config.NumberColumn(format="$%.2f"),
         "P/L %": st.column_config.NumberColumn(format="%.2f%%"),
-        "Stop-loss": st.column_config.NumberColumn(format="$%.2f", help="Bot sells if price falls to this level; blank = not managed by the bot"),
+        "Stop-loss": st.column_config.NumberColumn(format="$%.6g", help="Bot sells if price falls to this level; blank = not managed by the bot"),
     })
 
 
@@ -218,21 +229,22 @@ def section_strategy() -> None:
             "Gap %": (last.short_ma / last.long_ma - 1) * 100,
             "Last crossover": f"{cross_date:%Y-%m-%d} {kind}" if cross_date is not None else f"none in {len(df)} days",
         })
-    price = st.column_config.NumberColumn(format="$%.2f")
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch", column_config={
-        "Close": price, f"{short}-day MA": price, f"{long}-day MA": price,
+        "Close": PRICE_COLUMN, f"{short}-day MA": PRICE_COLUMN, f"{long}-day MA": PRICE_COLUMN,
         "Gap %": st.column_config.NumberColumn(format="%+.2f%%", help="How far the short MA is from the long MA; near 0 means a crossover is close"),
     })
-    if not data:
+    # Fixed option list: if it only held symbols that loaded, a data hiccup would change the
+    # options and Streamlit would silently reset the selection to the first symbol.
+    symbol = st.selectbox("Chart", config.SYMBOLS, key="chart_symbol")
+    if symbol not in data:
+        st.warning(f"No price data for {symbol} right now. Try Refresh in a minute.")
         return
-
-    symbol = st.selectbox("Chart", list(data))
     signal, df = data[symbol]
     last = df.iloc[-1]
     cols = st.columns(4)
-    cols[0].metric("Last close", money(last.close), f"as of {df.index[-1]:%Y-%m-%d}", delta_color="off")
-    cols[1].metric(f"{short}-day MA", money(last.short_ma))
-    cols[2].metric(f"{long}-day MA", money(last.long_ma))
+    cols[0].metric("Last close", price_text(last.close), f"as of {df.index[-1]:%Y-%m-%d}", delta_color="off")
+    cols[1].metric(f"{short}-day MA", price_text(last.short_ma))
+    cols[2].metric(f"{long}-day MA", price_text(last.long_ma))
     cols[3].metric("Signal", (signal or "none").upper(), delta_color="off")
 
     chart = df.rename(columns={"close": "Close", "short_ma": f"{short}-day MA", "long_ma": f"{long}-day MA"})

@@ -3,7 +3,7 @@
 Usage (Windows: venv\\Scripts\\python, Linux: venv/bin/python):
     python trading_bot.py                    # check now, trade on crossover / stop-loss
     python trading_bot.py --dry-run          # only report the signal
-    python trading_bot.py --wait-for-open    # scheduled mode: skip holidays, wait for 9:30 ET
+    python trading_bot.py --wait-for-open    # scheduled mode: wait for 9:30 ET; crypto only on market holidays
 
 Scheduling: setup_schedule.ps1 (Windows Task Scheduler) or setup_schedule.sh (Linux systemd/cron).
 """
@@ -14,17 +14,21 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
 from alpaca.common.exceptions import APIError
+from alpaca.data.historical import CryptoHistoricalDataClient
+from alpaca.data.requests import CryptoBarsRequest
+from alpaca.data.timeframe import TimeFrame
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, OrderStatus, OrderType, QueryOrderStatus, TimeInForce
 from alpaca.trading.models import Order, Position
-from alpaca.trading.requests import GetCalendarRequest, GetOrdersRequest, MarketOrderRequest, StopOrderRequest
+from alpaca.trading.requests import (GetCalendarRequest, GetOrdersRequest, MarketOrderRequest, StopLimitOrderRequest,
+                                     StopOrderRequest)
 from dotenv import load_dotenv
 
 import config
@@ -50,12 +54,26 @@ def setup_logging() -> None:
     log.setLevel(logging.INFO)
 
 
+def is_crypto(symbol: str) -> bool:
+    return "/" in symbol  # Alpaca crypto pairs look like "BTC/USD"
+
+
+def position_symbol(symbol: str) -> str:
+    return symbol.replace("/", "")  # Alpaca reports the BTC/USD position as "BTCUSD"
+
+
+def round_price(price: float, crypto: bool = False) -> float:
+    if crypto:
+        return float(f"{price:.6g}")  # 6 significant digits: works for BTC and for DOGE
+    return round(price, 2 if price >= 1 else 4)
+
+
 def wait_for_market_open(client: TradingClient) -> bool:
-    """Return False if today is not a trading day; otherwise sleep until the opening bell."""
+    """Return False if today is not a stock trading day; otherwise sleep until the opening bell."""
     today = datetime.now(ET).date()
     calendar = client.get_calendar(GetCalendarRequest(start=today, end=today))
     if not calendar or calendar[0].date != today:
-        log.info("Market closed today (%s). Nothing to do.", today)
+        log.info("Stock market closed today (%s).", today)
         return False
 
     market_open = datetime.combine(today, calendar[0].open.time(), ET)
@@ -68,14 +86,29 @@ def wait_for_market_open(client: TradingClient) -> bool:
     return True
 
 
+def fetch_crypto_closes(symbol: str, days: int) -> pd.Series:
+    # Alpaca's own crypto prices (the exchange the bot trades on); no API keys required.
+    start = datetime.now(timezone.utc) - timedelta(days=days + 10)
+    bars = CryptoHistoricalDataClient().get_crypto_bars(
+        CryptoBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start)).df
+    if bars.empty:
+        raise RuntimeError(f"No price data returned for {symbol}")
+    return bars.loc[symbol]["close"]
+
+
 def fetch_prices(symbol: str, days: int) -> pd.Series:
     # Pull a wider window, then keep the last `days` completed trading sessions.
-    history = yf.Ticker(symbol).history(period="1y", interval="1d", auto_adjust=True)
-    if history.empty:
-        raise RuntimeError(f"No price data returned for {symbol}")
-    close = history["Close"].dropna()
-    now = datetime.now(ET)
-    if close.index[-1].date() == now.date() and now.hour < 16:
+    if is_crypto(symbol):
+        close = fetch_crypto_closes(symbol, days)
+    else:
+        history = yf.Ticker(symbol).history(period="1y", interval="1d", auto_adjust=True)
+        if history.empty:
+            raise RuntimeError(f"No price data returned for {symbol}")
+        close = history["Close"]
+    close = close.dropna()
+    last_bar = close.index[-1]
+    now = datetime.now(last_bar.tz or ET)  # stock bars are New York days, crypto bars are UTC days
+    if last_bar.date() == now.date() and (is_crypto(symbol) or now.hour < 16):
         close = close.iloc[:-1]  # today's bar is still in progress
     return close.tail(days)
 
@@ -99,13 +132,13 @@ def detect_crossover(close: pd.Series, short: int, long: int) -> tuple[str | Non
 
 def get_position(client: TradingClient, symbol: str) -> Position | None:
     try:
-        return client.get_open_position(symbol)
+        return client.get_open_position(position_symbol(symbol))
     except APIError:
         return None
 
 
-def stop_price_for(entry: float) -> float:
-    return round(entry * (1 - config.STOP_LOSS_PCT / 100), 2)
+def stop_price_for(entry: float, crypto: bool = False) -> float:
+    return round_price(entry * (1 - config.STOP_LOSS_PCT / 100), crypto)
 
 
 def wait_for_order(client: TradingClient, order_id, done: set[OrderStatus], timeout: float = 30) -> Order:
@@ -121,16 +154,26 @@ def cancel_stop_orders(client: TradingClient, symbol: str) -> None:
     """Cancel open stop-loss orders so their shares are free to sell or re-protect."""
     orders = client.get_orders(GetOrdersRequest(status=QueryOrderStatus.OPEN, symbols=[symbol]))
     for o in orders:
-        if o.side == OrderSide.SELL and o.order_type == OrderType.STOP:
+        if o.side == OrderSide.SELL and o.order_type in (OrderType.STOP, OrderType.STOP_LIMIT):
             client.cancel_order_by_id(o.id)
             wait_for_order(client, o.id, {OrderStatus.CANCELED, OrderStatus.FILLED, OrderStatus.EXPIRED}, timeout=10)
             log.info("[%s] Canceled previous stop order %s", symbol, o.id)
 
 
 def place_stop(client: TradingClient, symbol: str, qty: float, entry: float, dry_run: bool) -> None:
-    stop = stop_price_for(entry)
+    crypto = is_crypto(symbol)
+    stop = stop_price_for(entry, crypto)
     if dry_run:
-        log.info("[%s] [dry-run] Would place stop-loss: sell %g share(s) at $%.2f", symbol, qty, stop)
+        log.info("[%s] [dry-run] Would place stop-loss: sell %g unit(s) at $%s", symbol, qty, stop)
+        return
+    if crypto:
+        limit = round_price(stop * (1 - config.CRYPTO_STOP_LIMIT_BUFFER_PCT / 100), crypto)
+        order = client.submit_order(StopLimitOrderRequest(
+            symbol=symbol, qty=qty, side=OrderSide.SELL, time_in_force=TimeInForce.GTC,
+            stop_price=stop, limit_price=limit,
+        ))
+        log.info("[%s] Stop-loss placed: sell %g unit(s) if price <= $%s, limit $%s (id=%s, good until canceled)",
+                 symbol, qty, stop, limit, order.id)
         return
     order = client.submit_order(StopOrderRequest(
         symbol=symbol, qty=qty, side=OrderSide.SELL, time_in_force=TimeInForce.DAY, stop_price=stop,
@@ -142,7 +185,7 @@ def sell_all(client: TradingClient, symbol: str, reason: str, dry_run: bool) -> 
     if dry_run:
         log.info("[%s] [dry-run] Would sell entire position (%s)", symbol, reason)
         return
-    order = client.close_position(symbol)
+    order = client.close_position(position_symbol(symbol))
     log.info("[%s] Sell order submitted for entire position (%s) (id=%s, status=%s)",
              symbol, reason, order.id, order.status.value)
 
@@ -161,15 +204,19 @@ def buy(client: TradingClient, symbol: str, dry_run: bool) -> None:
         return
 
     order = client.submit_order(MarketOrderRequest(
-        symbol=symbol, notional=amount, side=OrderSide.BUY, time_in_force=TimeInForce.DAY,
+        symbol=symbol, notional=amount, side=OrderSide.BUY,
+        time_in_force=TimeInForce.GTC if is_crypto(symbol) else TimeInForce.DAY,
     ))
     log.info("[%s] Buy order submitted: $%.2f (id=%s)", symbol, amount, order.id)
     order = wait_for_order(client, order.id, {OrderStatus.FILLED, OrderStatus.CANCELED, OrderStatus.REJECTED, OrderStatus.EXPIRED})
     if order.status != OrderStatus.FILLED:
         log.warning("[%s] Buy not filled yet (status=%s). Stop-loss will be placed on the next run.", symbol, order.status.value)
         return
-    qty, price = float(order.filled_qty), float(order.filled_avg_price)
-    log.info("[%s] Bought %g share(s) at $%.2f", symbol, qty, price)
+    price = float(order.filled_avg_price)
+    # Use the held quantity, not filled_qty: Alpaca takes crypto fees out of the coins bought.
+    position = get_position(client, symbol)
+    qty = float(position.qty) if position else float(order.filled_qty)
+    log.info("[%s] Bought %g unit(s) at $%s", symbol, qty, round_price(price, is_crypto(symbol)))
     place_stop(client, symbol, qty, price, dry_run)
 
 
@@ -185,16 +232,17 @@ def trade_symbol(client: TradingClient, symbol: str, dry_run: bool) -> None:
     close = fetch_prices(symbol, config.LOOKBACK_DAYS)
     signal, df = detect_crossover(close, config.SHORT_WINDOW, config.LONG_WINDOW)
     prev, last = df.iloc[-2], df.iloc[-1]
-    log.info("[%s] Data: %d completed trading days ending %s", symbol, len(close), df.index[-1].date())
-    log.info("[%s] Previous day (%s): %d-day MA %.2f, %d-day MA %.2f", symbol, df.index[-2].date(),
+    log.info("[%s] Data: %d completed %s ending %s", symbol, len(close),
+             "days" if is_crypto(symbol) else "trading days", df.index[-1].date())
+    log.info("[%s] Previous day (%s): %d-day MA %.6g, %d-day MA %.6g", symbol, df.index[-2].date(),
              config.SHORT_WINDOW, prev.short_ma, config.LONG_WINDOW, prev.long_ma)
-    log.info("[%s] Latest day   (%s): close %.2f, %d-day MA %.2f, %d-day MA %.2f", symbol, df.index[-1].date(),
+    log.info("[%s] Latest day   (%s): close %.6g, %d-day MA %.6g, %d-day MA %.6g", symbol, df.index[-1].date(),
              last.close, config.SHORT_WINDOW, last.short_ma, config.LONG_WINDOW, last.long_ma)
     log.info("[%s] Signal: %s", symbol, signal or "none")
     if signal:
         ALERTS.append(f"{symbol}: {signal.upper()} signal - {config.SHORT_WINDOW}-day MA crossed "
                       f"{'above' if signal == 'buy' else 'below'} {config.LONG_WINDOW}-day MA "
-                      f"({last.short_ma:.2f} vs {last.long_ma:.2f}), close ${last.close:.2f}")
+                      f"({last.short_ma:.6g} vs {last.long_ma:.6g}), close ${last.close:.6g}")
 
     position = get_position(client, symbol)
     if position is None:
@@ -207,15 +255,15 @@ def trade_symbol(client: TradingClient, symbol: str, dry_run: bool) -> None:
         return
 
     qty, entry, price = float(position.qty), float(position.avg_entry_price), float(position.current_price)
-    stop = stop_price_for(entry)
-    log.info("[%s] Holding %g share(s): entry $%.2f, now $%.2f (%+.2f%%), stop-loss $%.2f",
-             symbol, qty, entry, price, (price / entry - 1) * 100, stop)
+    stop = stop_price_for(entry, is_crypto(symbol))
+    log.info("[%s] Holding %g unit(s): entry $%s, now $%s (%+.2f%%), stop-loss $%s", symbol, qty,
+             round_price(entry, is_crypto(symbol)), round_price(price, is_crypto(symbol)), (price / entry - 1) * 100, stop)
     if not dry_run:
         cancel_stop_orders(client, symbol)
 
     if price <= stop:
-        ALERTS.append(f"{symbol}: STOP-LOSS hit - price ${price:.2f} <= stop ${stop:.2f} (entry ${entry:.2f})")
-        sell_all(client, symbol, f"stop-loss: ${price:.2f} <= ${stop:.2f}", dry_run)
+        ALERTS.append(f"{symbol}: STOP-LOSS hit - price ${price:g} <= stop ${stop:g} (entry ${entry:g})")
+        sell_all(client, symbol, f"stop-loss: ${price:g} <= ${stop:g}", dry_run)
     elif signal == "sell":
         sell_all(client, symbol, "death cross", dry_run)
     else:
@@ -230,18 +278,23 @@ def run(args: argparse.Namespace) -> int:
              config.STOP_LOSS_PCT, config.PAPER, args.dry_run)
 
     client = make_client()
+    symbols = config.SYMBOLS
     if args.wait_for_open and not wait_for_market_open(client):
-        return 0
+        symbols = [s for s in symbols if is_crypto(s)]  # crypto trades every day
+        if not symbols:
+            log.info("Nothing to do.")
+            return 0
+        log.info("Checking crypto only: %s", ", ".join(symbols))
 
     failed = []
-    for symbol in config.SYMBOLS:
+    for symbol in symbols:
         try:
             trade_symbol(client, symbol, args.dry_run)
         except Exception:
             log.exception("[%s] Failed", symbol)
             failed.append(symbol)
 
-    log.info("Done: %d symbol(s) checked, %d failed%s", len(config.SYMBOLS), len(failed),
+    log.info("Done: %d symbol(s) checked, %d failed%s", len(symbols), len(failed),
              f" ({', '.join(failed)})" if failed else "")
     return 1 if failed else 0
 

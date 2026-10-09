@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Schedules the trading bot on Linux to run every weekday at the 9:30 AM ET market open.
+# Schedules the trading bot on Linux to run daily at the 9:30 AM ET market open
+# (daily because crypto trades on weekends; stocks are skipped when the market is closed).
 #
 # Preferred: a systemd user timer scheduled directly in America/New_York time, so US
 # daylight saving is handled regardless of the server's timezone.
@@ -66,7 +67,7 @@ EOF
 Description=Run the Alpaca bot at the 9:30 AM ET market open
 
 [Timer]
-OnCalendar=Mon..Fri *-*-* 09:25:00 America/New_York
+OnCalendar=*-*-* 09:25:00 America/New_York
 Persistent=true
 
 [Install]
@@ -88,9 +89,9 @@ else
   {
     crontab -l 2>/dev/null | grep -vF "$CRON_TAG" || true
     echo "CRON_TZ=America/New_York $CRON_TAG"
-    echo "25 9 * * 1-5 cd \"$PROJECT_DIR\" && \"$PYTHON\" \"$SCRIPT\" --wait-for-open >/dev/null 2>&1 $CRON_TAG"
+    echo "25 9 * * * cd \"$PROJECT_DIR\" && \"$PYTHON\" \"$SCRIPT\" --wait-for-open >/dev/null 2>&1 $CRON_TAG"
   } | crontab -
-  echo "Installed cron job (9:25 AM ET, Mon-Fri)."
+  echo "Installed cron job (9:25 AM ET, daily)."
   echo "Note: if your cron ignores CRON_TZ (Debian/Ubuntu's default cron does), set the"
   echo "server timezone to America/New_York or use a system with systemd."
 fi

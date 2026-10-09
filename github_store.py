@@ -82,11 +82,7 @@ class GitHubStore:
 
 
 def next_scheduled_run(now: datetime | None = None) -> datetime:
-    """Next weekday at SCHEDULE_UTC, in UTC. GitHub may start scheduled runs a few minutes late."""
+    """Next daily run at SCHEDULE_UTC, in UTC. GitHub may start scheduled runs a few minutes late."""
     now = now or datetime.now(timezone.utc)
     run = now.replace(hour=SCHEDULE_UTC[0], minute=SCHEDULE_UTC[1], second=0, microsecond=0)
-    if run <= now:
-        run += timedelta(days=1)
-    while run.weekday() >= 5:
-        run += timedelta(days=1)
-    return run
+    return run if run > now else run + timedelta(days=1)
