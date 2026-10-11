@@ -232,3 +232,38 @@
 2026-10-10 13:49:57 ET [INFO] [LTC/USD] No crossover and no position. Nothing to do.
 2026-10-10 13:49:57 ET [INFO] Done: 6 symbol(s) checked, 0 failed
 2026-10-10 13:49:57 ET [INFO] ------------------------------------------------------------
+2026-10-11 14:03:07 ET [INFO] Running crossover bot for AAPL, MSFT, NVDA, SPY, JPM, BTC/USD, ETH/USD, DOGE/USD, SOL/USD, XRP/USD, LTC/USD (short=20, long=50, size=20% of equity, stop-loss=5%, paper=True, dry_run=False)
+2026-10-11 14:03:07 ET [INFO] Stock market closed today (2026-10-11).
+2026-10-11 14:03:07 ET [INFO] Checking crypto only: BTC/USD, ETH/USD, DOGE/USD, SOL/USD, XRP/USD, LTC/USD
+2026-10-11 14:03:07 ET [INFO] [BTC/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:07 ET [INFO] [BTC/USD] Previous day (2026-10-09): 20-day MA 84288.2, 50-day MA 80717.6
+2026-10-11 14:03:07 ET [INFO] [BTC/USD] Latest day   (2026-10-10): close 82909.4, 20-day MA 84375.4, 50-day MA 80809.2
+2026-10-11 14:03:07 ET [INFO] [BTC/USD] Signal: none
+2026-10-11 14:03:07 ET [INFO] [BTC/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] [ETH/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:08 ET [INFO] [ETH/USD] Previous day (2026-10-09): 20-day MA 2669.68, 50-day MA 2554.21
+2026-10-11 14:03:08 ET [INFO] [ETH/USD] Latest day   (2026-10-10): close 2504.78, 20-day MA 2662.72, 50-day MA 2553.98
+2026-10-11 14:03:08 ET [INFO] [ETH/USD] Signal: none
+2026-10-11 14:03:08 ET [INFO] [ETH/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] [DOGE/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:08 ET [INFO] [DOGE/USD] Previous day (2026-10-09): 20-day MA 0.0937037, 50-day MA 0.0891627
+2026-10-11 14:03:08 ET [INFO] [DOGE/USD] Latest day   (2026-10-10): close 0.0856825, 20-day MA 0.0936247, 50-day MA 0.0890451
+2026-10-11 14:03:08 ET [INFO] [DOGE/USD] Signal: none
+2026-10-11 14:03:08 ET [INFO] [DOGE/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] [SOL/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:08 ET [INFO] [SOL/USD] Previous day (2026-10-09): 20-day MA 117.826, 50-day MA 108.215
+2026-10-11 14:03:08 ET [INFO] [SOL/USD] Latest day   (2026-10-10): close 110.016, 20-day MA 117.771, 50-day MA 108.541
+2026-10-11 14:03:08 ET [INFO] [SOL/USD] Signal: none
+2026-10-11 14:03:08 ET [INFO] [SOL/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] [XRP/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:08 ET [INFO] [XRP/USD] Previous day (2026-10-09): 20-day MA 1.4913, 50-day MA 1.43342
+2026-10-11 14:03:08 ET [INFO] [XRP/USD] Latest day   (2026-10-10): close 1.40105, 20-day MA 1.49084, 50-day MA 1.43236
+2026-10-11 14:03:08 ET [INFO] [XRP/USD] Signal: none
+2026-10-11 14:03:08 ET [INFO] [XRP/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] [LTC/USD] Data: 100 completed days ending 2026-10-10
+2026-10-11 14:03:08 ET [INFO] [LTC/USD] Previous day (2026-10-09): 20-day MA 67.38, 50-day MA 58.3052
+2026-10-11 14:03:08 ET [INFO] [LTC/USD] Latest day   (2026-10-10): close 63.9905, 20-day MA 67.644, 50-day MA 58.5223
+2026-10-11 14:03:08 ET [INFO] [LTC/USD] Signal: none
+2026-10-11 14:03:08 ET [INFO] [LTC/USD] No crossover and no position. Nothing to do.
+2026-10-11 14:03:08 ET [INFO] Done: 6 symbol(s) checked, 0 failed
+2026-10-11 14:03:08 ET [INFO] ------------------------------------------------------------
