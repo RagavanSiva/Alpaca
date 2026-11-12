@@ -1984,3 +1984,99 @@ alpaca.common.exceptions.APIError: {"message": "too many requests."}
 2026-11-11 15:10:57 ET [INFO] [LTC/USD] No crossover and no position. Nothing to do.
 2026-11-11 15:10:57 ET [INFO] Done: 11 symbol(s) checked, 2 failed (SOL/USD, XRP/USD)
 2026-11-11 15:10:57 ET [INFO] ------------------------------------------------------------
+2026-11-12 15:47:10 ET [INFO] Running crossover bot for AAPL, MSFT, NVDA, SPY, JPM, BTC/USD, ETH/USD, DOGE/USD, SOL/USD, XRP/USD, LTC/USD (short=20, long=50, size=20% of equity, stop-loss=5%, paper=True, dry_run=False)
+2026-11-12 15:47:10 ET [WARNING] Started 377 minutes after market open
+2026-11-12 15:47:10 ET [INFO] [AAPL] Data: 100 completed trading days ending 2026-11-11
+2026-11-12 15:47:10 ET [INFO] [AAPL] Previous day (2026-11-10): 20-day MA 344.233, 50-day MA 337.267
+2026-11-12 15:47:10 ET [INFO] [AAPL] Latest day   (2026-11-11): close 355.63, 20-day MA 344.866, 50-day MA 337.877
+2026-11-12 15:47:10 ET [INFO] [AAPL] Signal: none
+2026-11-12 15:47:10 ET [INFO] [AAPL] No crossover and no position. Nothing to do.
+2026-11-12 15:47:11 ET [INFO] [MSFT] Data: 100 completed trading days ending 2026-11-11
+2026-11-12 15:47:11 ET [INFO] [MSFT] Previous day (2026-11-10): 20-day MA 531.094, 50-day MA 517.796
+2026-11-12 15:47:11 ET [INFO] [MSFT] Latest day   (2026-11-11): close 521.13, 20-day MA 530.466, 50-day MA 518.198
+2026-11-12 15:47:11 ET [INFO] [MSFT] Signal: none
+2026-11-12 15:47:11 ET [INFO] [MSFT] No crossover and no position. Nothing to do.
+2026-11-12 15:47:11 ET [INFO] [NVDA] Data: 100 completed trading days ending 2026-11-11
+2026-11-12 15:47:11 ET [INFO] [NVDA] Previous day (2026-11-10): 20-day MA 206.183, 50-day MA 217.968
+2026-11-12 15:47:11 ET [INFO] [NVDA] Latest day   (2026-11-11): close 173.73, 20-day MA 203.805, 50-day MA 217.098
+2026-11-12 15:47:11 ET [INFO] [NVDA] Signal: none
+2026-11-12 15:47:11 ET [INFO] [NVDA] No crossover and no position. Nothing to do.
+2026-11-12 15:47:11 ET [INFO] [SPY] Data: 100 completed trading days ending 2026-11-11
+2026-11-12 15:47:11 ET [INFO] [SPY] Previous day (2026-11-10): 20-day MA 760.688, 50-day MA 764.55
+2026-11-12 15:47:11 ET [INFO] [SPY] Latest day   (2026-11-11): close 759.81, 20-day MA 760.199, 50-day MA 764.549
+2026-11-12 15:47:11 ET [INFO] [SPY] Signal: none
+2026-11-12 15:47:11 ET [INFO] [SPY] No crossover and no position. Nothing to do.
+2026-11-12 15:47:11 ET [INFO] [JPM] Data: 100 completed trading days ending 2026-11-11
+2026-11-12 15:47:11 ET [INFO] [JPM] Previous day (2026-11-10): 20-day MA 337.951, 50-day MA 340.414
+2026-11-12 15:47:11 ET [INFO] [JPM] Latest day   (2026-11-11): close 343.39, 20-day MA 338.357, 50-day MA 340.218
+2026-11-12 15:47:11 ET [INFO] [JPM] Signal: none
+2026-11-12 15:47:11 ET [INFO] [JPM] No crossover and no position. Nothing to do.
+2026-11-12 15:47:12 ET [INFO] [BTC/USD] Data: 100 completed days ending 2026-11-11
+2026-11-12 15:47:12 ET [INFO] [BTC/USD] Previous day (2026-11-10): 20-day MA 78080.1, 50-day MA 81368.8
+2026-11-12 15:47:12 ET [INFO] [BTC/USD] Latest day   (2026-11-11): close 73929.4, 20-day MA 77711, 50-day MA 81123.5
+2026-11-12 15:47:12 ET [INFO] [BTC/USD] Signal: none
+2026-11-12 15:47:12 ET [INFO] [BTC/USD] No crossover and no position. Nothing to do.
+2026-11-12 15:47:12 ET [INFO] [ETH/USD] Data: 100 completed days ending 2026-11-11
+2026-11-12 15:47:12 ET [INFO] [ETH/USD] Previous day (2026-11-10): 20-day MA 2272.58, 50-day MA 2456.25
+2026-11-12 15:47:12 ET [INFO] [ETH/USD] Latest day   (2026-11-11): close 2053.98, 20-day MA 2255.96, 50-day MA 2442.27
+2026-11-12 15:47:12 ET [INFO] [ETH/USD] Signal: none
+2026-11-12 15:47:12 ET [INFO] [ETH/USD] No crossover and no position. Nothing to do.
+2026-11-12 15:47:12 ET [INFO] [DOGE/USD] Data: 100 completed days ending 2026-11-11
+2026-11-12 15:47:12 ET [INFO] [DOGE/USD] Previous day (2026-11-10): 20-day MA 0.0749016, 50-day MA 0.0833896
+2026-11-12 15:47:12 ET [INFO] [DOGE/USD] Latest day   (2026-11-11): close 0.0674423, 20-day MA 0.0743361, 50-day MA 0.0827301
+2026-11-12 15:47:12 ET [INFO] [DOGE/USD] Signal: none
+2026-11-12 15:47:12 ET [INFO] [DOGE/USD] No crossover and no position. Nothing to do.
+2026-11-12 15:47:13 ET [INFO] [SOL/USD] Data: 100 completed days ending 2026-11-11
+2026-11-12 15:47:13 ET [INFO] [SOL/USD] Previous day (2026-11-10): 20-day MA 95.0337, 50-day MA 106.002
+2026-11-12 15:47:13 ET [INFO] [SOL/USD] Latest day   (2026-11-11): close 83.1758, 20-day MA 94.0158, 50-day MA 105.294
+2026-11-12 15:47:13 ET [INFO] [SOL/USD] Signal: none
+2026-11-12 15:47:13 ET [INFO] [SOL/USD] No crossover and no position. Nothing to do.
+2026-11-12 15:47:13 ET [INFO] [XRP/USD] Data: 100 completed days ending 2026-11-11
+2026-11-12 15:47:13 ET [INFO] [XRP/USD] Previous day (2026-11-10): 20-day MA 1.23913, 50-day MA 1.35499
+2026-11-12 15:47:13 ET [INFO] [XRP/USD] Latest day   (2026-11-11): close 1.05113, 20-day MA 1.22626, 50-day MA 1.34457
+2026-11-12 15:47:13 ET [INFO] [XRP/USD] Signal: none
+2026-11-12 15:47:13 ET [INFO] [XRP/USD] No crossover and no position. Nothing to do.
+2026-11-12 15:47:22 ET [ERROR] [LTC/USD] Failed
+Traceback (most recent call last):
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/common/rest.py", line 198, in _one_request
+    response.raise_for_status()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://data.alpaca.markets/v1beta3/crypto/us/bars?start=2026-07-25T20%3A47%3A13.358255%2B00%3A00&timeframe=1Day&symbols=LTC%2FUSD&limit=10000
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/work/Alpaca/Alpaca/trading_bot.py", line 292, in run
+    trade_symbol(client, symbol, args.dry_run)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/Alpaca/Alpaca/trading_bot.py", line 232, in trade_symbol
+    close = fetch_prices(symbol, config.LOOKBACK_DAYS)
+  File "/home/runner/work/Alpaca/Alpaca/trading_bot.py", line 102, in fetch_prices
+    close = fetch_crypto_closes(symbol, days)
+  File "/home/runner/work/Alpaca/Alpaca/trading_bot.py", line 92, in fetch_crypto_closes
+    bars = CryptoHistoricalDataClient().get_crypto_bars(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        CryptoBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start)).df
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/data/historical/crypto.py", line 94, in get_crypto_bars
+    raw_bars = self._get_marketdata(
+        path=f"/crypto/{feed.value}/bars",
+        params=request_params.to_request_fields(),
+        page_size=10_000,
+    )
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/common/rest.py", line 393, in _get_marketdata
+    response = self.get(path=path, data=params)
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/common/rest.py", line 225, in get
+    return self._request("GET", path, data, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/common/rest.py", line 131, in _request
+    return self._one_request(method, url, opts, retry)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.14.10/x64/lib/python3.14/site-packages/alpaca/common/rest.py", line 207, in _one_request
+    raise APIError(error, http_error)
+alpaca.common.exceptions.APIError: {"message": "too many requests."}
+
+2026-11-12 15:47:22 ET [INFO] Done: 11 symbol(s) checked, 1 failed (LTC/USD)
+2026-11-12 15:47:22 ET [INFO] ------------------------------------------------------------
