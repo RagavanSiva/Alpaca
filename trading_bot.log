@@ -2305,3 +2305,65 @@ alpaca.common.exceptions.APIError: {"message": "too many requests."}
 2026-11-16 17:52:06 ET [INFO] [LTC/USD] No crossover and no position. Nothing to do.
 2026-11-16 17:52:06 ET [INFO] Done: 11 symbol(s) checked, 0 failed
 2026-11-16 17:52:06 ET [INFO] ------------------------------------------------------------
+2026-11-17 16:44:37 ET [INFO] Running crossover bot for AAPL, MSFT, NVDA, SPY, JPM, BTC/USD, ETH/USD, DOGE/USD, SOL/USD, XRP/USD, LTC/USD (short=20, long=50, size=20% of equity, stop-loss=5%, paper=True, dry_run=False)
+2026-11-17 16:44:37 ET [WARNING] Started 435 minutes after market open
+2026-11-17 16:44:37 ET [INFO] [AAPL] Data: 100 completed trading days ending 2026-11-17
+2026-11-17 16:44:37 ET [INFO] [AAPL] Previous day (2026-11-16): 20-day MA 346.42, 50-day MA 339.451
+2026-11-17 16:44:37 ET [INFO] [AAPL] Latest day   (2026-11-17): close 351.91, 20-day MA 347.053, 50-day MA 340.169
+2026-11-17 16:44:37 ET [INFO] [AAPL] Signal: none
+2026-11-17 16:44:37 ET [INFO] [AAPL] No crossover and no position. Nothing to do.
+2026-11-17 16:44:37 ET [INFO] [MSFT] Data: 100 completed trading days ending 2026-11-17
+2026-11-17 16:44:37 ET [INFO] [MSFT] Previous day (2026-11-16): 20-day MA 528.609, 50-day MA 519.363
+2026-11-17 16:44:37 ET [INFO] [MSFT] Latest day   (2026-11-17): close 506.24, 20-day MA 527.328, 50-day MA 519.609
+2026-11-17 16:44:37 ET [INFO] [MSFT] Signal: none
+2026-11-17 16:44:37 ET [INFO] [MSFT] No crossover and no position. Nothing to do.
+2026-11-17 16:44:38 ET [INFO] [NVDA] Data: 100 completed trading days ending 2026-11-17
+2026-11-17 16:44:38 ET [INFO] [NVDA] Previous day (2026-11-16): 20-day MA 195.641, 50-day MA 213.153
+2026-11-17 16:44:38 ET [INFO] [NVDA] Latest day   (2026-11-17): close 155.46, 20-day MA 192.591, 50-day MA 211.752
+2026-11-17 16:44:38 ET [INFO] [NVDA] Signal: none
+2026-11-17 16:44:38 ET [INFO] [NVDA] No crossover and no position. Nothing to do.
+2026-11-17 16:44:38 ET [INFO] [SPY] Data: 100 completed trading days ending 2026-11-17
+2026-11-17 16:44:38 ET [INFO] [SPY] Previous day (2026-11-16): 20-day MA 757.695, 50-day MA 763.522
+2026-11-17 16:44:38 ET [INFO] [SPY] Latest day   (2026-11-17): close 732.44, 20-day MA 755.864, 50-day MA 762.889
+2026-11-17 16:44:38 ET [INFO] [SPY] Signal: none
+2026-11-17 16:44:38 ET [INFO] [SPY] No crossover and no position. Nothing to do.
+2026-11-17 16:44:38 ET [INFO] [JPM] Data: 100 completed trading days ending 2026-11-17
+2026-11-17 16:44:38 ET [INFO] [JPM] Previous day (2026-11-16): 20-day MA 339.279, 50-day MA 339.331
+2026-11-17 16:44:38 ET [INFO] [JPM] Latest day   (2026-11-17): close 329.96, 20-day MA 339.014, 50-day MA 338.895
+2026-11-17 16:44:38 ET [INFO] [JPM] Signal: buy
+2026-11-17 16:44:38 ET [INFO] [JPM] Sizing: 20% of equity $99989.35, available cash $99989.35 -> $19997.87
+2026-11-17 16:44:38 ET [INFO] [JPM] Buy order submitted: $19997.87 (id=4d97bcb9-46e7-417f-aca1-4c2b6f2e5e7f)
+2026-11-17 16:45:08 ET [WARNING] [JPM] Buy not filled yet (status=accepted). Stop-loss will be placed on the next run.
+2026-11-17 16:45:08 ET [INFO] [BTC/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:08 ET [INFO] [BTC/USD] Previous day (2026-11-15): 20-day MA 75067.7, 50-day MA 79759.3
+2026-11-17 16:45:08 ET [INFO] [BTC/USD] Latest day   (2026-11-16): close 64816.6, 20-day MA 74268.1, 50-day MA 79366.4
+2026-11-17 16:45:08 ET [INFO] [BTC/USD] Signal: none
+2026-11-17 16:45:08 ET [INFO] [BTC/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:18 ET [INFO] [ETH/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:18 ET [INFO] [ETH/USD] Previous day (2026-11-15): 20-day MA 2163.98, 50-day MA 2378.04
+2026-11-17 16:45:18 ET [INFO] [ETH/USD] Latest day   (2026-11-16): close 1818.91, 20-day MA 2137.56, 50-day MA 2360.68
+2026-11-17 16:45:18 ET [INFO] [ETH/USD] Signal: none
+2026-11-17 16:45:18 ET [INFO] [ETH/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:18 ET [INFO] [DOGE/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:18 ET [INFO] [DOGE/USD] Previous day (2026-11-15): 20-day MA 0.0712139, 50-day MA 0.0800101
+2026-11-17 16:45:18 ET [INFO] [DOGE/USD] Latest day   (2026-11-16): close 0.058907, 20-day MA 0.0702065, 50-day MA 0.0792511
+2026-11-17 16:45:18 ET [INFO] [DOGE/USD] Signal: none
+2026-11-17 16:45:18 ET [INFO] [DOGE/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:24 ET [INFO] [SOL/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:24 ET [INFO] [SOL/USD] Previous day (2026-11-15): 20-day MA 88.8004, 50-day MA 101.835
+2026-11-17 16:45:24 ET [INFO] [SOL/USD] Latest day   (2026-11-16): close 71.5155, 20-day MA 87.3159, 50-day MA 100.827
+2026-11-17 16:45:24 ET [INFO] [SOL/USD] Signal: none
+2026-11-17 16:45:24 ET [INFO] [SOL/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:24 ET [INFO] [XRP/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:24 ET [INFO] [XRP/USD] Previous day (2026-11-15): 20-day MA 1.1635, 50-day MA 1.30067
+2026-11-17 16:45:24 ET [INFO] [XRP/USD] Latest day   (2026-11-16): close 0.954761, 20-day MA 1.1447, 50-day MA 1.28944
+2026-11-17 16:45:24 ET [INFO] [XRP/USD] Signal: none
+2026-11-17 16:45:24 ET [INFO] [XRP/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:24 ET [INFO] [LTC/USD] Data: 100 completed days ending 2026-11-16
+2026-11-17 16:45:24 ET [INFO] [LTC/USD] Previous day (2026-11-15): 20-day MA 52.5207, 50-day MA 59.0587
+2026-11-17 16:45:24 ET [INFO] [LTC/USD] Latest day   (2026-11-16): close 44.47, 20-day MA 51.8884, 50-day MA 58.523
+2026-11-17 16:45:24 ET [INFO] [LTC/USD] Signal: none
+2026-11-17 16:45:24 ET [INFO] [LTC/USD] No crossover and no position. Nothing to do.
+2026-11-17 16:45:24 ET [INFO] Done: 11 symbol(s) checked, 0 failed
+2026-11-17 16:45:26 ET [INFO] Notification email sent to sivaragavansivanathan@gmail.com
+2026-11-17 16:45:26 ET [INFO] ------------------------------------------------------------
